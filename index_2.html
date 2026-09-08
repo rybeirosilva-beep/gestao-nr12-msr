@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestão NR-12 by MSR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --verde-msr:#0A5601; --verde-profundo:#063803; --verde-claro:#177A08; --grafite:#2A2F33;
+  --bg:#f5f7f4; --surface:#ffffff; --surface-2:#eef2ec; --border:#dbe3d8;
+  --text:#1c211d; --text-muted:#5b665a; --danger:#b3261e; --warn:#a5680a; --ok:#177A08;
+  --font-display:'Manrope',sans-serif; --font-body:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12160f; --surface:#1a2017; --surface-2:#20281c; --border:#2d372a;
+    --text:#e7ece4; --text-muted:#9aa696; --verde-claro:#3ecb28;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12160f; --surface:#1a2017; --surface-2:#20281c; --border:#2d372a;
+  --text:#e7ece4; --text-muted:#9aa696; --verde-claro:#3ecb28;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
+button{font-family:inherit;cursor:pointer;}
+input,select{font-family:inherit;}
+.hidden{display:none!important;}
+a{color:var(--verde-claro);}
+
+/* ---------- Auth screens ---------- */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;box-shadow:0 12px 32px rgba(0,0,0,.08);}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.brand-mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--verde-msr),var(--verde-claro));display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:15px;}
+.brand-name{font-family:var(--font-display);font-weight:800;font-size:17px;}
+.brand-name small{display:block;font-family:var(--font-body);font-weight:500;font-size:11px;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;}
+.auth-card h2{font-size:22px;margin-bottom:4px;}
+.auth-sub{color:var(--text-muted);font-size:13.5px;margin-bottom:22px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:6px;}
+.field input{width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;}
+.field input:focus{outline:2px solid var(--verde-claro);outline-offset:1px;}
+.field input[readonly]{font-family:var(--font-mono);font-size:13px;background:var(--surface-2);}
+.pw-row{position:relative;}
+.pw-toggle{position:absolute;right:10px;top:9px;background:none;border:none;color:var(--text-muted);font-size:12px;font-weight:600;padding:4px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:9px;border:none;padding:11px 16px;font-weight:700;font-size:14px;width:100%;}
+.btn-primary{background:var(--verde-msr);color:#fff;}
+.btn-primary:hover{background:var(--verde-profundo);}
+.btn-ghost{background:transparent;color:var(--verde-msr);border:1px solid var(--border);}
+.auth-switch{margin-top:18px;text-align:center;font-size:13px;color:var(--text-muted);}
+.auth-switch button{background:none;border:none;color:var(--verde-msr);font-weight:700;text-decoration:underline;}
+.auth-msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:14px;}
+.auth-msg.err{background:#fbe9e7;color:var(--danger);}
+.auth-msg.ok{background:#e6f4e3;color:var(--ok);}
+:root:not([data-theme="light"]) .auth-msg.err{background:#3a1a17;}
+:root:not([data-theme="light"]) .auth-msg.ok{background:#173a13;}
+
+/* ---------- App shell ---------- */
+.app{display:none;min-height:100vh;grid-template-columns:230px 1fr;}
+.app.show{display:grid;}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;}
+.sidebar .brand{padding:0 6px;margin-bottom:26px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;color:var(--text-muted);font-size:13.5px;font-weight:600;cursor:pointer;margin-bottom:2px;}
+.nav-item:hover{background:var(--surface-2);}
+.nav-item.active{background:var(--verde-msr);color:#fff;}
+.sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--border);}
+.trial-pill{font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:20px;background:var(--surface-2);color:var(--text-muted);margin-bottom:10px;text-align:center;}
+.trial-pill.warn{background:#fdecc8;color:var(--warn);}
+.trial-pill.ok{background:#e6f4e3;color:var(--ok);}
+.acc-btn{width:100%;text-align:left;background:none;border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:12.5px;color:var(--text-muted);}
+
+.main{padding:26px 32px;overflow-y:auto;max-height:100vh;}
+.page{display:none;}
+.page.show{display:block;}
+.page-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+.page-head h1{font-size:23px;}
+.page-head p{color:var(--text-muted);font-size:13.5px;margin-top:4px;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:16px 18px;}
+.kpi .num{font-family:var(--font-mono);font-size:26px;font-weight:600;}
+.kpi .lbl{font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-top:2px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:20px;margin-bottom:18px;}
+.card h3{font-size:15px;margin-bottom:14px;}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.toolbar input[type=search]{flex:1;min-width:160px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;}
+.btn-sm{padding:8px 13px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:600;}
+.btn-sm.primary{background:var(--verde-msr);color:#fff;border-color:var(--verde-msr);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--border);}
+td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl-wrap{overflow-x:auto;}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.b-baixo{background:#e6f4e3;color:var(--ok);}
+.b-medio{background:#fdecc8;color:var(--warn);}
+.b-alto{background:#fbdccb;color:#b35a1e;}
+.b-critico{background:#fbe0de;color:var(--danger);}
+.row-actions button{background:none;border:none;color:var(--text-muted);font-size:16px;padding:2px 6px;}
+.row-actions button:hover{color:var(--verde-msr);}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal{background:var(--surface);border-radius:14px;padding:24px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;}
+.modal h3{margin-bottom:16px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.modal-actions .btn{width:auto;flex:1;}
+
+/* ---------- Expired / upgrade screen ---------- */
+.expired-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.expired-card{max-width:460px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;text-align:center;}
+.expired-card h2{font-size:21px;margin-bottom:10px;}
+.expired-card p{color:var(--text-muted);font-size:14px;line-height:1.5;margin-bottom:18px;}
+.price-box{background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:18px;}
+.price-box .val{font-family:var(--font-mono);font-size:28px;font-weight:600;color:var(--verde-msr);}
+.contact-line{font-size:12.5px;color:var(--text-muted);margin-top:14px;}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN / SIGNUP ================= -->
+<div id="authScreen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">12</div>
+      <div class="brand-name">Gestão NR-12<small>by MSR</small></div>
+    </div>
+
+    <div id="authMsg"></div>
+
+    <!-- LOGIN -->
+    <div id="loginForm">
+      <h2>Entrar</h2>
+      <div class="auth-sub">Acesse sua conta para continuar a adequação das suas máquinas.</div>
+      <div class="field"><label>E-mail</label><input type="email" id="loginEmail" autocomplete="username"></div>
+      <div class="field">
+        <label>Senha</label>
+        <div class="pw-row">
+          <input type="password" id="loginPassword" autocomplete="current-password">
+          <button type="button" class="pw-toggle" data-toggle="loginPassword">mostrar</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btnLogin">Entrar</button>
+      <div class="auth-switch">Ainda não tem conta? <button id="gotoSignup">Começar teste grátis de 7 dias</button></div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupForm" class="hidden">
+      <h2>Teste grátis de 7 dias</h2>
+      <div class="auth-sub">Sem compromisso — conheça o sistema completo de adequação NR-12. Sua senha de acesso é gerada automaticamente e enviada para o seu WhatsApp.</div>
+      <div class="field"><label>Nome</label><input type="text" id="suNome"></div>
+      <div class="field"><label>Empresa</label><input type="text" id="suEmpresa"></div>
+      <div class="field"><label>WhatsApp (com DDD)</label><input type="text" id="suWhats" placeholder="(92) 9####-####"></div>
+      <div class="field"><label>E-mail</label><input type="email" id="suEmail" autocomplete="username"></div>
+      <button class="btn btn-primary" id="btnSignup">Criar minha conta e começar</button>
+      <div class="auth-switch">Já tem conta? <button id="gotoLogin">Entrar</button></div>
+    </div>
+
+    <!-- CREDENCIAIS GERADAS -->
+    <div id="credsForm" class="hidden">
+      <h2>Sua conta foi criada 🎉</h2>
+      <div class="auth-sub">Guarde os dados abaixo — você vai precisar deles para entrar da próxima vez.</div>
+      <div class="field"><label>Link de acesso</label><input type="text" id="credLink" readonly></div>
+      <div class="field"><label>E-mail</label><input type="text" id="credEmail" readonly></div>
+      <div class="field">
+        <label>Senha gerada</label>
+        <div class="pw-row">
+          <input type="text" id="credPassword" readonly>
+        </div>
+      </div>
+      <a class="btn btn-primary" id="btnSendWhats" style="text-decoration:none;margin-bottom:10px;" target="_blank" rel="noopener">Enviar esses dados para o meu WhatsApp</a>
+      <button class="btn btn-ghost" id="btnCopyCreds">Copiar dados de acesso</button>
+      <div class="auth-switch"><button id="btnContinueApp">Continuar para o sistema →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= EXPIRED / UPGRADE ================= -->
+<div id="expiredScreen" class="expired-wrap hidden">
+  <div class="expired-card">
+    <h2 id="expiredTitle">Seu teste grátis terminou</h2>
+    <p id="expiredText">Os 7 dias de avaliação gratuita do Gestão NR-12 by MSR chegaram ao fim. Faça o upgrade para continuar usando o sistema na sua empresa, sem perder o inventário que você já cadastrou.</p>
+    <div class="price-box">
+      <div class="val">R$ 37,99<span style="font-size:14px;color:var(--text-muted);">/mês</span></div>
+    </div>
+    <a class="btn btn-primary" style="text-decoration:none;margin-bottom:10px;" href="https://pay.kiwify.com.br/BrD2I5j" target="_blank" rel="noopener">Fazer upgrade agora</a>
+    <button class="btn btn-ghost" id="btnCheckPayment">Já paguei · verificar liberação</button>
+    <div class="contact-line">A liberação é automática após a confirmação do pagamento. Dúvidas? <a href="https://wa.me/5592991004676" target="_blank" rel="noopener">WhatsApp</a> ou <a href="mailto:comercial@msrsecurity.com.br">comercial@msrsecurity.com.br</a></div>
+    <div class="contact-line" style="margin-top:14px;"><button class="btn-sm" id="btnLogout2">Sair</button></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">12</div>
+      <div class="brand-name">Gestão NR-12<small>by MSR</small></div>
+    </div>
+    <nav>
+      <div class="nav-item active" data-page="painel">📊 Painel Executivo</div>
+      <div class="nav-item" data-page="inventario">⚙️ Inventário de Máquinas</div>
+      <div class="nav-item" data-page="plano">✅ Plano de Adequação</div>
+      <div class="nav-item" data-page="inspecoes">🔍 Inspeções</div>
+    </nav>
+    <div class="sidebar-foot">
+      <div id="trialPill" class="trial-pill"></div>
+      <button class="acc-btn" id="btnAccount">👤 <span id="accEmail"></span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- PAINEL EXECUTIVO -->
+    <section class="page show" id="page-painel">
+      <div class="page-head"><div><h1>Painel Executivo NR-12</h1><p>Visão geral da adequação de máquinas e equipamentos</p></div></div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="num" id="kpiTotal">0</div><div class="lbl">Máquinas cadastradas</div></div>
+        <div class="kpi"><div class="num" id="kpiCritico">0</div><div class="lbl">Risco crítico/alto</div></div>
+        <div class="kpi"><div class="num" id="kpiAdequadas">0</div><div class="lbl">Já adequadas</div></div>
+        <div class="kpi"><div class="num" id="kpiInvest">R$ 0</div><div class="lbl">Investimento estimado</div></div>
+      </div>
+      <div class="card">
+        <h3>Distribuição por nível de risco</h3>
+        <div id="riskBars"></div>
+      </div>
+    </section>
+
+    <!-- INVENTÁRIO -->
+    <section class="page" id="page-inventario">
+      <div class="page-head">
+        <div><h1>Inventário de Máquinas</h1><p>Cadastro e matriz de risco Severidade × Frequência</p></div>
+        <button class="btn-sm primary" id="btnNovaMaquina">+ Nova máquina</button>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="searchMaq" placeholder="Buscar por nome, setor ou marca...">
+        <button class="btn-sm" id="btnExportCsv">Exportar CSV</button>
+      </div>
+      <div class="card tbl-wrap">
+        <table>
+          <thead><tr><th>Código</th><th>Máquina</th><th>Setor</th><th>Risco</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tblMaquinas"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PLANO DE AÇÃO -->
+    <section class="page" id="page-plano">
+      <div class="page-head">
+        <div><h1>Plano de Adequação</h1><p>Ações pendentes por máquina</p></div>
+        <button class="btn-sm primary" id="btnNovaAcao">+ Nova ação</button>
+      </div>
+      <div class="card tbl-wrap">
+        <table>
+          <thead><tr><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tblAcoes"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- INSPEÇÕES -->
+    <section class="page" id="page-inspecoes">
+      <div class="page-head">
+        <div><h1>Inspeções de Campo</h1><p>Histórico de inspeções por máquina</p></div>
+        <button class="btn-sm primary" id="btnNovaInsp">+ Nova inspeção</button>
+      </div>
+      <div class="card tbl-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Máquina</th><th>Inspetor</th><th>Resultado</th></tr></thead>
+          <tbody id="tblInsp"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ MODAL MÁQUINA ============ -->
+<div class="modal-bg hidden" id="modalMaquina">
+  <div class="modal">
+    <h3 id="modalMaquinaTitle">Nova máquina</h3>
+    <div class="field"><label>Código</label><input id="mCodigo"></div>
+    <div class="field"><label>Nome da máquina</label><input id="mNome"></div>
+    <div class="grid2">
+      <div class="field"><label>Setor</label><input id="mSetor"></div>
+      <div class="field"><label>Marca/Modelo</label><input id="mMarca"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Severidade</label>
+        <select id="mSeveridade"><option>Leve</option><option>Moderada</option><option>Grave</option><option>Fatal</option></select>
+      </div>
+      <div class="field"><label>Frequência</label>
+        <select id="mFrequencia"><option>Rara</option><option>Ocasional</option><option>Frequente</option><option>Contínua</option></select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Status de adequação</label>
+        <select id="mStatus"><option>Pendente</option><option>Em andamento</option><option>Adequada</option></select>
+      </div>
+      <div class="field"><label>Investimento (R$)</label><input id="mInvest" type="number" step="0.01"></div>
+    </div>
+    <div class="field"><label>Observações</label><input id="mObs"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="mCancelar">Cancelar</button>
+      <button class="btn btn-primary" id="mSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL AÇÃO ============ -->
+<div class="modal-bg hidden" id="modalAcao">
+  <div class="modal">
+    <h3>Nova ação do plano</h3>
+    <div class="field"><label>Título da ação</label><input id="aTitulo"></div>
+    <div class="field"><label>Máquina relacionada</label><select id="aMaquina"></select></div>
+    <div class="grid2">
+      <div class="field"><label>Responsável</label><input id="aResp"></div>
+      <div class="field"><label>Prazo</label><input id="aPrazo" type="date"></div>
+    </div>
+    <div class="field"><label>Status</label>
+      <select id="aStatus"><option>Pendente</option><option>Em andamento</option><option>Concluído</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="aCancelar">Cancelar</button>
+      <button class="btn btn-primary" id="aSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL INSPEÇÃO ============ -->
+<div class="modal-bg hidden" id="modalInsp">
+  <div class="modal">
+    <h3>Nova inspeção</h3>
+    <div class="field"><label>Máquina</label><select id="iMaquina"></select></div>
+    <div class="grid2">
+      <div class="field"><label>Data</label><input id="iData" type="date"></div>
+      <div class="field"><label>Inspetor</label><input id="iInsp"></div>
+    </div>
+    <div class="field"><label>Resultado</label><input id="iResultado" placeholder="Conforme / Não conforme"></div>
+    <div class="field"><label>Observações</label><input id="iObs"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="iCancelar">Cancelar</button>
+      <button class="btn btn-primary" id="iSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://iwjknkyjeeknixvexkdm.supabase.co";
+const SUPABASE_KEY = "sb_publishable_SrFQIFMX5vO50IJjBIYA7g_eo-YOii4";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const RISK_MATRIX = {
+  Leve:      {Rara:'Baixo',   Ocasional:'Baixo',   Frequente:'Médio',   Contínua:'Médio'},
+  Moderada:  {Rara:'Baixo',   Ocasional:'Médio',   Frequente:'Alto',    Contínua:'Alto'},
+  Grave:     {Rara:'Médio',   Ocasional:'Alto',    Frequente:'Alto',    Contínua:'Crítico'},
+  Fatal:     {Rara:'Alto',    Ocasional:'Crítico', Frequente:'Crítico', Contínua:'Crítico'}
+};
+function riskLevel(sev, freq){ return (RISK_MATRIX[sev] && RISK_MATRIX[sev][freq]) || 'Baixo'; }
+function riskBadgeClass(nivel){
+  return {Baixo:'b-baixo', Médio:'b-medio', Alto:'b-alto', Crítico:'b-critico'}[nivel] || 'b-baixo';
+}
+
+let currentUser = null;
+let subscription = null;
+let machines = [];
+let actionItems = [];
+let inspections = [];
+
+// ---------- helpers ----------
+function $(id){ return document.getElementById(id); }
+function show(el){ el.classList.remove('hidden'); }
+function hide(el){ el.classList.add('hidden'); }
+function fmtBRL(v){ return (Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+
+function setAuthMsg(text, type){
+  const el = $('authMsg');
+  if(!text){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="auth-msg ${type}">${text}</div>`;
+}
+
+document.querySelectorAll('.pw-toggle').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const inp = $(btn.dataset.toggle);
+    if(inp.type === 'password'){ inp.type='text'; btn.textContent='ocultar'; }
+    else { inp.type='password'; btn.textContent='mostrar'; }
+  });
+});
+
+$('gotoSignup').addEventListener('click', ()=>{ hide($('loginForm')); hide($('credsForm')); show($('signupForm')); setAuthMsg(); });
+$('gotoLogin').addEventListener('click', ()=>{ hide($('signupForm')); hide($('credsForm')); show($('loginForm')); setAuthMsg(); });
+
+// ---------- signup ----------
+function gerarSenha(){
+  const alfabeto = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const buf = new Uint32Array(10);
+  crypto.getRandomValues(buf);
+  let senha = '';
+  for(let i=0;i<10;i++){ senha += alfabeto[buf[i] % alfabeto.length]; }
+  return senha;
+}
+function apenasDigitos(v){ return (v||'').replace(/\D/g,''); }
+function whatsLink(numero, texto){
+  let digitos = apenasDigitos(numero);
+  if(digitos.length <= 11) digitos = '55' + digitos; // adiciona DDI Brasil se não informado
+  return 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(texto);
+}
+
+$('btnSignup').addEventListener('click', async ()=>{
+  const email = $('suEmail').value.trim();
+  const nome = $('suNome').value.trim();
+  const empresa = $('suEmpresa').value.trim();
+  const whatsapp = $('suWhats').value.trim();
+  if(!email || !whatsapp){
+    setAuthMsg('Preencha ao menos o e-mail e o WhatsApp.', 'err'); return;
+  }
+  const password = gerarSenha();
+  setAuthMsg('Criando sua conta...', 'ok');
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if(error){ setAuthMsg(error.message, 'err'); return; }
+  // completa o cadastro na tabela subscriptions (criada automaticamente pelo trigger)
+  if(data.user){
+    await sb.from('subscriptions').update({ nome, empresa, whatsapp }).eq('user_id', data.user.id);
+  }
+  // mostra tela de credenciais geradas, com atalho para enviar ao próprio WhatsApp
+  const link = location.origin + location.pathname;
+  $('credLink').value = link;
+  $('credEmail').value = email;
+  $('credPassword').value = password;
+  const msg = `Seu acesso ao Gestão NR-12 by MSR:\nLink: ${link}\nE-mail: ${email}\nSenha: ${password}`;
+  $('btnSendWhats').href = whatsLink(whatsapp, msg);
+  $('btnCopyCreds').onclick = ()=>{
+    navigator.clipboard.writeText(msg).then(()=>{ $('btnCopyCreds').textContent = 'Copiado!'; setTimeout(()=>{ $('btnCopyCreds').textContent='Copiar dados de acesso'; },1800); });
+  };
+  $('btnContinueApp').onclick = async ()=>{ await bootAfterAuth(); };
+  hide($('loginForm')); hide($('signupForm')); show($('credsForm')); setAuthMsg();
+});
+
+// ---------- login ----------
+$('btnLogin').addEventListener('click', async ()=>{
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  setAuthMsg('Entrando...', 'ok');
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ setAuthMsg('E-mail ou senha inválidos.', 'err'); return; }
+  await bootAfterAuth();
+});
+
+$('btnLogout2').addEventListener('click', async ()=>{ await sb.auth.signOut(); location.reload(); });
+$('btnAccount').addEventListener('click', async ()=>{
+  if(confirm('Deseja sair da sua conta?')){ await sb.auth.signOut(); location.reload(); }
+});
+
+$('btnCheckPayment').addEventListener('click', async ()=>{
+  await refreshSubscription();
+  routeByStatus();
+});
+
+// ---------- boot ----------
+async function bootAfterAuth(){
+  const { data: { user } } = await sb.auth.getUser();
+  if(!user){ return; }
+  currentUser = user;
+  await refreshSubscription();
+  routeByStatus();
+}
+
+async function refreshSubscription(){
+  const { data } = await sb.from('subscriptions').select('*').eq('user_id', currentUser.id).single();
+  subscription = data;
+}
+
+function trialDaysLeft(){
+  if(!subscription) return 0;
+  const start = new Date(subscription.trial_start).getTime();
+  const end = start + subscription.trial_days*24*60*60*1000;
+  return Math.max(0, Math.ceil((end - Date.now())/(24*60*60*1000)));
+}
+
+function routeByStatus(){
+  hide($('authScreen'));
+  if(!subscription){ show($('expiredScreen')); return; }
+  const paid = subscription.status === 'paid' && (!subscription.paid_until || new Date(subscription.paid_until) > new Date());
+  const trialLeft = trialDaysLeft();
+  if(paid || (subscription.status === 'trial' && trialLeft > 0)){
+    show($('app')); $('app').classList.add('show'); hide($('expiredScreen'));
+    $('accEmail').textContent = subscription.email;
+    const pill = $('trialPill');
+    if(paid){ pill.textContent = 'Plano ativo'; pill.className = 'trial-pill ok'; }
+    else { pill.textContent = trialLeft + ' dia(s) de teste restantes'; pill.className = 'trial-pill ' + (trialLeft<=2?'warn':''); }
+    loadAllData();
+  } else {
+    hide($('app')); $('app').classList.remove('show');
+    show($('expiredScreen'));
+  }
+}
+
+// ---------- data ----------
+async function loadAllData(){
+  const [m, a, i] = await Promise.all([
+    sb.from('machines').select('*').order('created_at',{ascending:false}),
+    sb.from('action_items').select('*, machines(nome)').order('created_at',{ascending:false}),
+    sb.from('inspections').select('*, machines(nome)').order('data_inspecao',{ascending:false})
+  ]);
+  machines = m.data || [];
+  actionItems = a.data || [];
+  inspections = i.data || [];
+  renderPainel(); renderMaquinas(); renderAcoes(); renderInspecoes(); fillMachineSelects();
+}
+
+function renderPainel(){
+  $('kpiTotal').textContent = machines.length;
+  const criticos = machines.filter(m=>['Alto','Crítico'].includes(m.nivel_risco)).length;
+  $('kpiCritico').textContent = criticos;
+  $('kpiAdequadas').textContent = machines.filter(m=>m.status_adequacao==='Adequada').length;
+  const invest = machines.reduce((s,m)=>s+(Number(m.custo_investimento)||0),0);
+  $('kpiInvest').textContent = fmtBRL(invest);
+
+  const levels = ['Baixo','Médio','Alto','Crítico'];
+  const counts = levels.map(l=>machines.filter(m=>m.nivel_risco===l).length);
+  const max = Math.max(1,...counts);
+  $('riskBars').innerHTML = levels.map((l,idx)=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="width:70px;font-size:12.5px;color:var(--text-muted);">${l}</div>
+      <div style="flex:1;background:var(--surface-2);border-radius:6px;height:10px;overflow:hidden;">
+        <div style="width:${(counts[idx]/max*100)}%;height:100%;background:var(--verde-msr);"></div>
+      </div>
+      <div style="width:24px;text-align:right;font-family:var(--font-mono);font-size:12.5px;">${counts[idx]}</div>
+    </div>`).join('');
+}
+
+function renderMaquinas(){
+  const term = ($('searchMaq').value||'').toLowerCase();
+  const rows = machines.filter(m => !term || [m.nome,m.setor,m.marca,m.codigo].some(v=>(v||'').toLowerCase().includes(term)));
+  $('tblMaquinas').innerHTML = rows.map(m=>`
+    <tr>
+      <td>${m.codigo||'-'}</td>
+      <td>${m.nome}<div style="font-size:11.5px;color:var(--text-muted);">${m.marca||''}</div></td>
+      <td>${m.setor||'-'}</td>
+      <td><span class="badge ${riskBadgeClass(m.nivel_risco)}">${m.nivel_risco||'-'}</span></td>
+      <td>${m.status_adequacao||'Pendente'}</td>
+      <td class="row-actions">
+        <button onclick="editMachine('${m.id}')" title="Editar">✏️</button>
+        <button onclick="deleteMachine('${m.id}')" title="Excluir">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:24px;">Nenhuma máquina cadastrada ainda.</td></tr>';
+}
+
+function renderAcoes(){
+  $('tblAcoes').innerHTML = actionItems.map(a=>`
+    <tr>
+      <td>${a.titulo}<div style="font-size:11.5px;color:var(--text-muted);">${a.machines? a.machines.nome : ''}</div></td>
+      <td>${a.responsavel||'-'}</td>
+      <td>${a.prazo? new Date(a.prazo).toLocaleDateString('pt-BR') : '-'}</td>
+      <td>${a.status}</td>
+      <td class="row-actions"><button onclick="deleteAcao('${a.id}')">🗑️</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:24px;">Nenhuma ação cadastrada ainda.</td></tr>';
+}
+
+function renderInspecoes(){
+  $('tblInsp').innerHTML = inspections.map(i=>`
+    <tr>
+      <td>${new Date(i.data_inspecao).toLocaleDateString('pt-BR')}</td>
+      <td>${i.machines? i.machines.nome : '-'}</td>
+      <td>${i.inspetor||'-'}</td>
+      <td>${i.resultado||'-'}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:24px;">Nenhuma inspeção registrada ainda.</td></tr>';
+}
+
+function fillMachineSelects(){
+  const opts = machines.map(m=>`<option value="${m.id}">${m.nome}</option>`).join('');
+  $('aMaquina').innerHTML = opts; $('iMaquina').innerHTML = opts;
+}
+
+$('searchMaq').addEventListener('input', renderMaquinas);
+
+// ---------- navigation ----------
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('show'));
+    $('page-'+item.dataset.page).classList.add('show');
+  });
+});
+
+// ---------- machine modal ----------
+let editingMachineId = null;
+$('btnNovaMaquina').addEventListener('click', ()=>{
+  editingMachineId = null;
+  $('modalMaquinaTitle').textContent = 'Nova máquina';
+  ['mCodigo','mNome','mSetor','mMarca','mInvest','mObs'].forEach(id=>$(id).value='');
+  $('mSeveridade').value='Leve'; $('mFrequencia').value='Rara'; $('mStatus').value='Pendente';
+  show($('modalMaquina'));
+});
+window.editMachine = function(id){
+  const m = machines.find(x=>x.id===id); if(!m) return;
+  editingMachineId = id;
+  $('modalMaquinaTitle').textContent = 'Editar máquina';
+  $('mCodigo').value=m.codigo||''; $('mNome').value=m.nome||''; $('mSetor').value=m.setor||'';
+  $('mMarca').value=m.marca||''; $('mSeveridade').value=m.severidade||'Leve'; $('mFrequencia').value=m.frequencia||'Rara';
+  $('mStatus').value=m.status_adequacao||'Pendente'; $('mInvest').value=m.custo_investimento||''; $('mObs').value=m.observacoes||'';
+  show($('modalMaquina'));
+};
+window.deleteMachine = async function(id){
+  if(!confirm('Excluir esta máquina?')) return;
+  await sb.from('machines').delete().eq('id', id);
+  await loadAllData();
+};
+$('mCancelar').addEventListener('click', ()=>hide($('modalMaquina')));
+$('mSalvar').addEventListener('click', async ()=>{
+  const severidade = $('mSeveridade').value, frequencia = $('mFrequencia').value;
+  const payload = {
+    codigo: $('mCodigo').value, nome: $('mNome').value, setor: $('mSetor').value, marca: $('mMarca').value,
+    severidade, frequencia, nivel_risco: riskLevel(severidade,frequencia),
+    status_adequacao: $('mStatus').value, custo_investimento: Number($('mInvest').value)||0,
+    observacoes: $('mObs').value
+  };
+  if(!payload.nome){ alert('Informe o nome da máquina.'); return; }
+  if(editingMachineId){
+    await sb.from('machines').update(payload).eq('id', editingMachineId);
+  } else {
+    payload.user_id = currentUser.id;
+    await sb.from('machines').insert(payload);
+  }
+  hide($('modalMaquina'));
+  await loadAllData();
+});
+
+// ---------- action modal ----------
+$('btnNovaAcao').addEventListener('click', ()=>{
+  ['aTitulo','aResp','aPrazo'].forEach(id=>$(id).value=''); $('aStatus').value='Pendente';
+  if(!machines.length){ alert('Cadastre ao menos uma máquina antes de criar uma ação.'); return; }
+  show($('modalAcao'));
+});
+$('aCancelar').addEventListener('click', ()=>hide($('modalAcao')));
+$('aSalvar').addEventListener('click', async ()=>{
+  if(!$('aTitulo').value){ alert('Informe o título da ação.'); return; }
+  await sb.from('action_items').insert({
+    user_id: currentUser.id, titulo: $('aTitulo').value, machine_id: $('aMaquina').value || null,
+    responsavel: $('aResp').value, prazo: $('aPrazo').value || null, status: $('aStatus').value
+  });
+  hide($('modalAcao')); await loadAllData();
+});
+window.deleteAcao = async function(id){ await sb.from('action_items').delete().eq('id', id); await loadAllData(); };
+
+// ---------- inspection modal ----------
+$('btnNovaInsp').addEventListener('click', ()=>{
+  ['iData','iInsp','iResultado','iObs'].forEach(id=>$(id).value='');
+  $('iData').value = new Date().toISOString().slice(0,10);
+  if(!machines.length){ alert('Cadastre ao menos uma máquina antes de registrar uma inspeção.'); return; }
+  show($('modalInsp'));
+});
+$('iCancelar').addEventListener('click', ()=>hide($('modalInsp')));
+$('iSalvar').addEventListener('click', async ()=>{
+  await sb.from('inspections').insert({
+    user_id: currentUser.id, machine_id: $('iMaquina').value || null, data_inspecao: $('iData').value,
+    inspetor: $('iInsp').value, resultado: $('iResultado').value, observacoes: $('iObs').value
+  });
+  hide($('modalInsp')); await loadAllData();
+});
+
+// ---------- CSV export ----------
+$('btnExportCsv').addEventListener('click', ()=>{
+  const header = ['Codigo','Nome','Setor','Marca','Severidade','Frequencia','NivelRisco','Status','Investimento','Observacoes'];
+  const lines = machines.map(m=>[m.codigo,m.nome,m.setor,m.marca,m.severidade,m.frequencia,m.nivel_risco,m.status_adequacao,m.custo_investimento,m.observacoes]
+    .map(v=>`"${(v??'').toString().replace(/"/g,'""')}"`).join(';'));
+  const csv = [header.join(';'), ...lines].join('\n');
+  const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'inventario-nr12-msr.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---------- session bootstrap ----------
+(async function init(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session){ currentUser = session.user; await refreshSubscription(); routeByStatus(); }
+})();
+</script>
+</body>
+</html>
