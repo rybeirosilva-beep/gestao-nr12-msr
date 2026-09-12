@@ -295,7 +295,10 @@ td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
     <section class="page" id="page-clientes">
       <div class="page-head">
         <div><h1>Clientes</h1><p>Assinantes da plataforma Gestão NR-12 by MSR</p></div>
-        <button class="btn-sm" id="btnRefreshClientes">Atualizar</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-sm primary" id="btnConvidarCliente">+ Convidar cliente</button>
+          <button class="btn-sm" id="btnRefreshClientes">Atualizar</button>
+        </div>
       </div>
       <div class="kpi-grid">
         <div class="kpi"><div class="num" id="kpiCliTotal">0</div><div class="lbl">Total de clientes</div></div>
@@ -390,6 +393,19 @@ td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
   </div>
 </div>
 
+<!-- ============ MODAL CONVIDAR CLIENTE ============ -->
+<div class="modal-bg hidden" id="modalConvite">
+  <div class="modal">
+    <h3>Convidar cliente para o teste grátis</h3>
+    <div class="field"><label>Nome do cliente</label><input id="cvNome" placeholder="Nome da pessoa ou da empresa"></div>
+    <div class="field"><label>WhatsApp (com DDD)</label><input id="cvWhats" placeholder="(92) 9####-####"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cvCancelar">Cancelar</button>
+      <a class="btn btn-primary" id="cvEnviar" style="text-decoration:none;" target="_blank" rel="noopener">Enviar convite pelo WhatsApp</a>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://iwjknkyjeeknixvexkdm.supabase.co";
 const SUPABASE_KEY = "sb_publishable_SrFQIFMX5vO50IJjBIYA7g_eo-YOii4";
@@ -448,7 +464,7 @@ function gerarSenha(){
 function apenasDigitos(v){ return (v||'').replace(/\D/g,''); }
 function whatsLink(numero, texto){
   let digitos = apenasDigitos(numero);
-  if(digitos.length <= 11) digitos = '55' + digitos;
+  if(digitos.length <= 11) digitos = '55' + digitos; // adiciona DDI Brasil se não informado
   return 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(texto);
 }
 
@@ -464,9 +480,11 @@ $('btnSignup').addEventListener('click', async ()=>{
   setAuthMsg('Criando sua conta...', 'ok');
   const { data, error } = await sb.auth.signUp({ email, password });
   if(error){ setAuthMsg(error.message, 'err'); return; }
+  // completa o cadastro na tabela subscriptions (criada automaticamente pelo trigger)
   if(data.user){
     await sb.from('subscriptions').update({ nome, empresa, whatsapp }).eq('user_id', data.user.id);
   }
+  // mostra tela de credenciais geradas, com atalho para enviar ao próprio WhatsApp
   const link = location.origin + location.pathname;
   $('credLink').value = link;
   $('credEmail').value = email;
@@ -665,6 +683,27 @@ function fillMachineSelects(){
 $('searchMaq').addEventListener('input', renderMaquinas);
 $('searchCli').addEventListener('input', renderClientes);
 $('btnRefreshClientes').addEventListener('click', loadClientes);
+
+// ---------- convidar cliente ----------
+$('btnConvidarCliente').addEventListener('click', ()=>{
+  $('cvNome').value = ''; $('cvWhats').value = '';
+  $('cvEnviar').removeAttribute('href');
+  show($('modalConvite'));
+});
+$('cvCancelar').addEventListener('click', ()=>hide($('modalConvite')));
+function montarLinkConvite(){
+  const nome = $('cvNome').value.trim();
+  const whatsapp = $('cvWhats').value.trim();
+  if(!whatsapp){ alert('Informe o WhatsApp do cliente.'); return; }
+  const link = location.origin + location.pathname;
+  const saudacao = nome ? `Olá, ${nome}! ` : 'Olá! ';
+  const msg = `${saudacao}Aqui é da MSR Treinamento e Gestão em Segurança do Trabalho. Você foi convidado(a) a testar de graça por 7 dias o Gestão NR-12 by MSR, o sistema de adequação de máquinas à NR-12:\n${link}\nÉ só se cadastrar com seu e-mail e WhatsApp — sua senha de acesso é gerada na hora.`;
+  $('cvEnviar').href = whatsLink(whatsapp, msg);
+  $('cvEnviar').click();
+}
+$('cvEnviar').addEventListener('click', (e)=>{
+  if(!$('cvEnviar').getAttribute('href')){ e.preventDefault(); montarLinkConvite(); }
+});
 
 // ---------- navigation ----------
 document.querySelectorAll('.nav-item').forEach(item=>{
