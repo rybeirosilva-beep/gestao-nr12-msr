@@ -122,6 +122,17 @@ td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
 .price-box{background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:18px;}
 .price-box .val{font-family:var(--font-mono);font-size:28px;font-weight:600;color:var(--verde-msr);}
 .contact-line{font-size:12.5px;color:var(--text-muted);margin-top:14px;}
+
+/* ---------- Botão flutuante de suporte ---------- */
+.support-fab{position:fixed;right:22px;bottom:22px;z-index:60;display:flex;align-items:center;gap:8px;
+  background:var(--verde-msr);color:#fff;text-decoration:none;border-radius:999px;padding:13px 16px;
+  font-weight:700;font-size:14px;box-shadow:0 8px 22px rgba(10,86,1,.35);transition:transform .15s ease,box-shadow .15s ease;}
+.support-fab:hover{background:var(--verde-profundo);transform:translateY(-2px);box-shadow:0 12px 26px rgba(10,86,1,.42);}
+.support-fab-label{white-space:nowrap;}
+@media (max-width:520px){
+  .support-fab{padding:14px;border-radius:50%;}
+  .support-fab-label{display:none;}
+}
 </style>
 </head>
 <body>
@@ -210,6 +221,7 @@ td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
       <div class="nav-item" data-page="inventario">⚙️ Inventário de Máquinas</div>
       <div class="nav-item" data-page="plano">✅ Plano de Adequação</div>
       <div class="nav-item" data-page="inspecoes">🔍 Inspeções</div>
+      <div class="nav-item hidden" data-page="clientes" id="navClientes">👥 Clientes</div>
     </nav>
     <div class="sidebar-foot">
       <div id="trialPill" class="trial-pill"></div>
@@ -278,7 +290,34 @@ td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
         </table>
       </div>
     </section>
+
+    <!-- CLIENTES (somente admin) -->
+    <section class="page" id="page-clientes">
+      <div class="page-head">
+        <div><h1>Clientes</h1><p>Assinantes da plataforma Gestão NR-12 by MSR</p></div>
+        <button class="btn-sm" id="btnRefreshClientes">Atualizar</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="num" id="kpiCliTotal">0</div><div class="lbl">Total de clientes</div></div>
+        <div class="kpi"><div class="num" id="kpiCliTrial">0</div><div class="lbl">Em teste (trial)</div></div>
+        <div class="kpi"><div class="num" id="kpiCliPagos">0</div><div class="lbl">Assinaturas pagas</div></div>
+        <div class="kpi"><div class="num" id="kpiCliMrr">R$ 0</div><div class="lbl">Receita recorrente (MRR)</div></div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="searchCli" placeholder="Buscar por nome, empresa, e-mail ou WhatsApp...">
+      </div>
+      <div class="card tbl-wrap">
+        <table>
+          <thead><tr><th>Cliente</th><th>Contato</th><th>Status</th><th>Situação</th><th>Cadastrado em</th></tr></thead>
+          <tbody id="tblClientes"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
+
+  <a class="support-fab" id="btnSuporte" href="https://wa.me/5592991004676?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Gest%C3%A3o%20NR-12%20by%20MSR" target="_blank" rel="noopener" title="Falar com o suporte">
+    💬<span class="support-fab-label">Suporte</span>
+  </a>
 </div>
 
 <!-- ============ MODAL MÁQUINA ============ -->
@@ -372,6 +411,7 @@ let subscription = null;
 let machines = [];
 let actionItems = [];
 let inspections = [];
+let clientes = [];
 
 // ---------- helpers ----------
 function $(id){ return document.getElementById(id); }
@@ -408,7 +448,7 @@ function gerarSenha(){
 function apenasDigitos(v){ return (v||'').replace(/\D/g,''); }
 function whatsLink(numero, texto){
   let digitos = apenasDigitos(numero);
-  if(digitos.length <= 11) digitos = '55' + digitos; // adiciona DDI Brasil se não informado
+  if(digitos.length <= 11) digitos = '55' + digitos;
   return 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(texto);
 }
 
@@ -424,11 +464,9 @@ $('btnSignup').addEventListener('click', async ()=>{
   setAuthMsg('Criando sua conta...', 'ok');
   const { data, error } = await sb.auth.signUp({ email, password });
   if(error){ setAuthMsg(error.message, 'err'); return; }
-  // completa o cadastro na tabela subscriptions (criada automaticamente pelo trigger)
   if(data.user){
     await sb.from('subscriptions').update({ nome, empresa, whatsapp }).eq('user_id', data.user.id);
   }
-  // mostra tela de credenciais geradas, com atalho para enviar ao próprio WhatsApp
   const link = location.origin + location.pathname;
   $('credLink').value = link;
   $('credEmail').value = email;
@@ -494,6 +532,7 @@ function routeByStatus(){
     const pill = $('trialPill');
     if(paid){ pill.textContent = 'Plano ativo'; pill.className = 'trial-pill ok'; }
     else { pill.textContent = trialLeft + ' dia(s) de teste restantes'; pill.className = 'trial-pill ' + (trialLeft<=2?'warn':''); }
+    if(subscription.role === 'admin'){ show($('navClientes')); } else { hide($('navClientes')); }
     loadAllData();
   } else {
     hide($('app')); $('app').classList.remove('show');
@@ -512,6 +551,51 @@ async function loadAllData(){
   actionItems = a.data || [];
   inspections = i.data || [];
   renderPainel(); renderMaquinas(); renderAcoes(); renderInspecoes(); fillMachineSelects();
+  if(subscription && subscription.role === 'admin'){ await loadClientes(); }
+}
+
+// ---------- clientes (admin) ----------
+async function loadClientes(){
+  const { data, error } = await sb.from('subscriptions').select('*').order('created_at',{ascending:false});
+  if(error){ console.error(error); return; }
+  clientes = data || [];
+  renderClientes();
+}
+
+function clienteStatusInfo(c){
+  const paid = c.status === 'paid' && (!c.paid_until || new Date(c.paid_until) > new Date());
+  if(paid) return {label:'Pago', cls:'b-baixo'};
+  if(c.status === 'trial'){
+    const start = new Date(c.trial_start).getTime();
+    const end = start + (c.trial_days||7)*24*60*60*1000;
+    const left = Math.max(0, Math.ceil((end - Date.now())/(24*60*60*1000)));
+    if(left > 0) return {label:'Trial · ' + left + 'd restante(s)', cls: left<=2?'b-medio':'b-baixo'};
+    return {label:'Trial expirado', cls:'b-alto'};
+  }
+  if(c.status === 'expired') return {label:'Expirado', cls:'b-alto'};
+  if(c.status === 'cancelled') return {label:'Cancelado', cls:'b-critico'};
+  return {label:c.status||'-', cls:'b-medio'};
+}
+
+function renderClientes(){
+  const term = ($('searchCli').value||'').toLowerCase();
+  const rows = clientes.filter(c => c.role !== 'admin' && (!term || [c.nome,c.empresa,c.email,c.whatsapp].some(v=>(v||'').toLowerCase().includes(term))));
+  $('kpiCliTotal').textContent = rows.length;
+  $('kpiCliTrial').textContent = rows.filter(c=>c.status==='trial').length;
+  const pagos = rows.filter(c=>c.status==='paid' && (!c.paid_until || new Date(c.paid_until) > new Date()));
+  $('kpiCliPagos').textContent = pagos.length;
+  $('kpiCliMrr').textContent = fmtBRL(pagos.reduce((s,c)=>s+(Number(c.plan_price)||0),0));
+
+  $('tblClientes').innerHTML = rows.map(c=>{
+    const info = clienteStatusInfo(c);
+    return `<tr>
+      <td>${c.nome||'-'}<div style="font-size:11.5px;color:var(--text-muted);">${c.empresa||''}</div></td>
+      <td>${c.email}<div style="font-size:11.5px;color:var(--text-muted);">${c.whatsapp||'-'}</div></td>
+      <td><span class="badge ${info.cls}">${info.label}</span></td>
+      <td>${c.kiwify_order_id ? 'Kiwify #'+c.kiwify_order_id : '-'}</td>
+      <td>${c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '-'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:24px;">Nenhum cliente cadastrado ainda.</td></tr>';
 }
 
 function renderPainel(){
@@ -579,6 +663,8 @@ function fillMachineSelects(){
 }
 
 $('searchMaq').addEventListener('input', renderMaquinas);
+$('searchCli').addEventListener('input', renderClientes);
+$('btnRefreshClientes').addEventListener('click', loadClientes);
 
 // ---------- navigation ----------
 document.querySelectorAll('.nav-item').forEach(item=>{
